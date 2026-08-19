@@ -3,6 +3,6 @@
 .venv/
 venv/
 
-data
+data/*.csv
 
 catboost_info/
