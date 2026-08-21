@@ -15,7 +15,23 @@ FINAL_FEATURES = [
     'hour_cos'
 ]
 
-CATEGORICAL_FEATURES = ['type']
-
 TARGET = 'isFraud'
+RANDOM_SEED = 42
+
+CATEGORICAL_FEATURES = ['type']
+NUMERIC_FEATURES = ['amount', 'log_amount']
+OTHER_FEATURES = ['step', 'day', 'hour_sin', 'hour_cos']
+
+
+TEST_POINT = 550
+THRESHOLD_POINT = 500
+CALIBRATION_POINT = 450
+VALIDATION_POINT = 400
+
+TEMPORAL_FOLDS = [
+    (250, 300),
+    (300, 350),
+    (350, 400),
+    (400, 450),
+]
 
