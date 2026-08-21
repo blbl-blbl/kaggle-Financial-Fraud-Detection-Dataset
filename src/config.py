@@ -8,4 +8,14 @@ BASE_FEATURES = [
     'newbalanceDest', 'isFlaggedFraud'
 ]
 
+FINAL_FEATURES = [
+    'step', 'type',
+    'amount', 'log_amount',
+    'day', 'hour_sin',
+    'hour_cos'
+]
+
+CATEGORICAL_FEATURES = ['type']
+
 TARGET = 'isFraud'
+
