@@ -1,7 +1,6 @@
 # data.py
 
 import pandas as pd
-from pathlib import Path
 from src.config import PROJECT_PATH
 
 from config import (
