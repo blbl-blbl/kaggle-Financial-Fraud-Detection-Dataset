@@ -2,14 +2,17 @@
 
 import pandas as pd
 from pathlib import Path
+from src.config import PROJECT_PATH
 
 from config import (
     BASE_FEATURES,
     TARGET
 )
 
-def load_data(path: Path):
-    return pd.read_csv(path)
+def load_data(path=PROJECT_PATH / "data" / "Synthetic_Financial_datasets_log.csv"):
+    df = pd.read_csv(path)
+    df_checked = validate_columns(df)
+    return df_checked
 
 def validate_columns(df):
     required_columns = BASE_FEATURES + [TARGET]
