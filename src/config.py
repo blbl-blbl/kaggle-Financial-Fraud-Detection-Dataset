@@ -1,5 +1,9 @@
 # config.py
 
+from pathlib import Path
+
+PROJECT_PATH = Path(__file__).resolve().parents[1]
+
 BASE_FEATURES = [
     'step', 'type',
     'amount', 'nameOrig',
