@@ -10,7 +10,7 @@ def load_artifact(
 ):
     return joblib.load(path)
 
-def predict(X, artifact):
+def predict(X, artifact = load_artifact()):
     model = artifact['model']
     threshold = artifact['threshold']
 
