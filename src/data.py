@@ -1,11 +1,10 @@
 # data.py
 
 import pandas as pd
-from src.config import PROJECT_PATH
-
-from config import (
+from src.config import (
     BASE_FEATURES,
-    TARGET
+    TARGET,
+    PROJECT_PATH
 )
 
 def load_data(path=PROJECT_PATH / "data" / "Synthetic_Financial_datasets_log.csv"):
