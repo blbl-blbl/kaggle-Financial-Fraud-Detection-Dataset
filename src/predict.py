@@ -5,12 +5,8 @@ import joblib
 import pandas as pd
 
 
-def load_artifact(
-        path = PROJECT_PATH / "models" / "catboost_fraud_model.joblib"
-):
-    return joblib.load(path)
+def predict(X, artifact):
 
-def predict(X, artifact = load_artifact()):
     model = artifact['model']
     threshold = artifact['threshold']
 
