@@ -1,247 +1,234 @@
+![Tests](https://github.com/blbl-blbl/kaggle-Financial-Fraud-Detection-Dataset/actions/workflows/tests.yml/badge.svg)
+
 # Financial Fraud Detection
 
 A machine learning project for detecting fraudulent financial transactions in a highly imbalanced dataset.
 
-The project focuses not only on predictive performance, but also on **data leakage prevention, temporal validation, class imbalance, probability calibration, operating-threshold selection, and model interpretability**.
+The project focuses on both predictive performance and ML engineering practices, including:
 
-The repository currently contains the research and experimentation stage implemented in Jupyter notebooks. The next stage is to convert the selected approach into a reproducible Python training and inference pipeline.
+- leakage-aware feature selection
+- temporal validation
+- class imbalance handling
+- hyperparameter optimization
+- probability calibration
+- operating-threshold selection
+- model interpretability
+- reproducible training and inference
+- automated testing and CI
 
 ## Dataset
 
-The project uses the [Financial Fraud Detection Dataset on Kaggle](https://www.kaggle.com/datasets/sriharshaeedala/financial-fraud-detection-dataset/data), which contains synthetic mobile-money transactions.
+The project uses the [Financial Fraud Detection Dataset on Kaggle](https://www.kaggle.com/datasets/sriharshaeedala/financial-fraud-detection-dataset/data), containing synthetic mobile-money transactions.
 
-* **6,362,620 transactions**
-* **8,213 fraudulent transactions**
-* Fraud rate: approximately **0.129%**
-* Target variable: `isFraud`
+Dataset characteristics:
 
-Because the target is extremely imbalanced, metrics such as accuracy are not suitable for model selection. **Average Precision (AP)** is therefore used as the primary ranking metric.
+- 6,362,620 transactions
+- 8,213 fraudulent transactions
+- fraud rate ≈ 0.129%
+- target: `isFraud`
+
+Because fraud is extremely rare, accuracy is not suitable as the primary model-selection metric.
+
+**Average Precision (AP)** is used as the main ranking metric.
+
+CSV files are intentionally excluded from Git.
 
 ## Methodology
 
 ### Leakage-aware feature selection
 
-Several original dataset variables are intentionally excluded from the primary model.
+Several original variables are excluded from the final model.
 
-The balance-related features:
-
-* `oldbalanceOrg`
-* `newbalanceOrig`
-* `oldbalanceDest`
-* `newbalanceDest`
-
-may introduce target leakage because fraudulent transactions in the dataset are annulled, meaning post-transaction balances can indirectly contain information about the target.
-
-`isFlaggedFraud` is also excluded because it represents an existing rule-based fraud detection system rather than an independent transaction characteristic.
-
-Raw account identifiers:
-
-* `nameOrig`
-* `nameDest`
-
-are not directly encoded because of their extremely high cardinality.
-
-### Engineered features
-
-The current feature set includes:
-
-* `step`
-* `type`
-* `amount`
-* `log_amount`
-* `day`
-* `hour_sin`
-* `hour_cos`
-
-`log_amount` reduces the strong right skew of transaction amounts.
-
-Transaction hour is represented using sine and cosine transformations:
+Balance-related features:
 
 ```text
+oldbalanceOrg
+newbalanceOrig
+oldbalanceDest
+newbalanceDest
+```
+
+may contain target leakage because fraudulent transactions in the synthetic dataset are annulled, allowing post-transaction balances to indirectly reveal information about the target.
+
+`isFlaggedFraud` is excluded because it represents an existing rule-based fraud detector.
+
+High-cardinality account identifiers:
+
+```text
+nameOrig
+nameDest
+```
+
+are not directly encoded in the current model.
+
+### Final features
+
+The selected feature set is:
+
+```text
+step
+type
+amount
+log_amount
+day
 hour_sin
 hour_cos
 ```
 
-which preserve the cyclical nature of time.
+`log_amount` reduces the strong right skew of transaction amounts.
+
+Transaction hour is represented using sine and cosine transformations to preserve its cyclical structure.
 
 ## Temporal validation
 
-A random train/test split is deliberately avoided.
+Random splitting is deliberately avoided because fraud prevalence changes significantly over time.
 
-Fraud prevalence changes substantially over time in this dataset, which creates a strong temporal distribution shift. A random split would mix earlier and later observations and produce an unrealistically optimistic estimate of model quality.
+The data is divided into consecutive time periods:
 
-The current data split is:
+| Dataset | Step range | Purpose |
+| --- | ---: | --- |
+| Train | 1–400 | Model development and tuning |
+| Validation | 401–450 | Model selection / early stopping |
+| Calibration | 451–500 | Probability calibration |
+| Threshold | 501–550 | Operating threshold selection |
+| Test | 551–743 | Final out-of-time evaluation |
 
-| Dataset     | Step range | Purpose                                             |
-| ----------- | ---------: | --------------------------------------------------- |
-| Train       |    `1–400` | Initial model development and hyperparameter search |
-| Validation  |  `401–450` | Model selection and early stopping                  |
-| Calibration |  `451–500` | Probability calibration                             |
-| Threshold   |  `501–550` | Operating-threshold selection                       |
-| Test        |  `551–743` | Final untouched out-of-time evaluation              |
-
-After model selection, `train` and `validation` are combined into a single development dataset:
+After model selection:
 
 ```text
-development = step 1–450
+development = train + validation
+            = steps 1–450
 ```
 
-The selected model is then retrained on the complete development period.
+The selected model is retrained on the complete development period.
 
-## Expanding-window cross-validation
+## Temporal cross-validation
 
-The strongest candidate models are additionally evaluated using expanding temporal folds:
+Model stability is additionally evaluated using expanding-window folds:
 
 ```text
-Fold 1:
-Train      step <= 250
-Validation step 251–300
+Fold 1
+Train:      step <= 250
+Validation: step 251–300
 
-Fold 2:
-Train      step <= 300
-Validation step 301–350
+Fold 2
+Train:      step <= 300
+Validation: step 301–350
 
-Fold 3:
-Train      step <= 350
-Validation step 351–400
+Fold 3
+Train:      step <= 350
+Validation: step 351–400
 
-Fold 4:
-Train      step <= 400
-Validation step 401–450
+Fold 4
+Train:      step <= 400
+Validation: step 401–450
 ```
 
-This approach provides a more realistic estimate of model stability under temporal drift than evaluating performance on a single validation period.
+This provides a more realistic robustness check under temporal distribution shift than random cross-validation.
 
 ## Models evaluated
 
-The following algorithms are compared:
-
-* Logistic Regression
-* Decision Tree
-* Random Forest
-* XGBoost
-* CatBoost
-* LightGBM
-
-Different class-imbalance strategies are also evaluated:
-
-* class weighting
-* random undersampling
-* random oversampling
-* SMOTENC
-
-Hyperparameters for the strongest models are optimized with **Optuna**.
-
-## Model selection
-
-CatBoost and LightGBM emerged as the strongest candidates after the initial model comparison and hyperparameter tuning.
-
-The latest saved cross-validation outputs showed:
-
-| Model    | Mean CV AP | CV AP std |
-| -------- | ---------: | --------: |
-| CatBoost |  **0.407** |     0.044 |
-| LightGBM |      0.384 | **0.030** |
-
-CatBoost was selected as the primary model because of its higher mean Average Precision.
-
-LightGBM remained a strong alternative: it showed slightly lower variation across temporal folds and substantially faster training.
-
-> **Important:** these results were produced before the latest refactoring of the modeling notebook. The entire experiment will be rerun before the metrics are treated as final.
-
-## Class imbalance
-
-The positive class represents only approximately 0.13% of all transactions.
-
-Several strategies are evaluated to determine whether changing the effective class distribution improves ranking performance:
+The research stage compares:
 
 ```text
-Class weights
-Random undersampling
-Random oversampling
+Logistic Regression
+Decision Tree
+Random Forest
+XGBoost
+CatBoost
+LightGBM
+```
+
+Class-imbalance strategies include:
+
+```text
+class weighting
+random undersampling
+random oversampling
 SMOTENC
 ```
 
-Sampling is applied only to training data. Validation, calibration, threshold, and test datasets retain their original class distributions.
+Sampling is applied only to training data.
+
+Validation, calibration, threshold and test datasets retain their original class distributions.
+
+## Selected model
+
+CatBoost and LightGBM were the strongest candidates in the initial experiments.
+
+Latest saved temporal CV results:
+
+| Model | Mean CV AP | CV AP std |
+| --- | ---: | ---: |
+| CatBoost | 0.407 | 0.044 |
+| LightGBM | 0.384 | 0.030 |
+
+CatBoost was selected as the primary model.
+
+The current CatBoost pipeline uses RandomOverSampler with an effective minority-class sampling ratio of `0.02`.
+
+Hyperparameters are optimized using Optuna and stored separately in:
+
+```text
+configs/catboost.yaml
+```
+
+> These metrics were produced during the research stage and should be treated as provisional until the final end-to-end experiment is rerun from the current Python pipeline.
 
 ## Probability calibration
 
-The raw output of a classifier trained on highly imbalanced and resampled data should not automatically be interpreted as a well-calibrated fraud probability.
+The classifier is trained on resampled data, so raw model scores should not automatically be interpreted as calibrated fraud probabilities.
 
-For this reason, the selected model is calibrated using a dedicated out-of-time calibration dataset.
+A dedicated out-of-time calibration period is used.
 
-Two approaches are compared:
+The research stage compared:
 
-* Isotonic calibration
-* Sigmoid calibration
+```text
+isotonic
+sigmoid
+```
 
-Calibration quality is evaluated using:
-
-* Brier score
-* Calibration curves
-
-In the latest saved experiment, isotonic calibration produced the lowest Brier score and was selected for the final model.
+Isotonic calibration produced the best saved Brier score and is currently used by the training pipeline.
 
 ## Operating threshold
 
-The classification threshold is selected on a dedicated threshold dataset rather than on the test set.
+The final classification threshold is selected on a dedicated threshold dataset rather than the test set.
 
-The project uses **F2** instead of F1 for threshold optimization.
+Threshold optimization uses **F2 score**, placing more emphasis on recall than precision.
 
-F2 gives recall more weight than precision:
+This reflects a common fraud-detection assumption: missing a fraudulent transaction can be more costly than investigating an additional legitimate transaction.
+
+## Evaluation
+
+The final out-of-time test report contains:
 
 ```text
-F2 → recall is more important than precision
+Average Precision
+Precision
+Recall
+F1
+F2
+Confusion Matrix
 ```
 
-This is a more natural assumption for fraud detection, where failing to detect fraudulent transactions may be more costly than investigating additional legitimate transactions.
+The report is generated automatically by the training pipeline and saved to:
 
-Once selected, the threshold is frozen and applied unchanged to the final test period.
-
-## Evaluation metrics
-
-The following metrics are used:
-
-### Ranking quality
-
-* **Average Precision** — primary model-selection metric
-
-### Classification quality at the selected threshold
-
-* Precision
-* Recall
-* F1
-* F2
-* Confusion Matrix
-
-### Probability quality
-
-* Brier score
-* Calibration curve
-
-Accuracy is intentionally not used as a primary metric because a classifier that predicts every transaction as legitimate would already achieve extremely high accuracy.
-
-## Interpretability
-
-The final CatBoost model is interpreted using **SHAP**.
-
-During model development, SHAP values are computed on a sample from the development dataset rather than on the final test set.
-
-This avoids indirectly using information from the test period to make further modeling decisions.
-
-The SHAP analysis is intended to answer questions such as:
-
-* Which features drive fraud scores globally?
-* What features increase fraud risk for individual transactions?
-* Why does the model produce false positives?
-* Why are some fraudulent transactions missed?
+```text
+reports/metrics.json
+```
 
 ## Repository structure
 
 ```text
 .
+├── .github/
+│   └── workflows/
+│       └── tests.yml
+│
+├── configs/
+│   └── catboost.yaml
+│
 ├── data/
-│   └── .gitkeep
 │
 ├── models/
 │
@@ -251,164 +238,195 @@ The SHAP analysis is intended to answer questions such as:
 │   ├── 03_feature_engineering.ipynb
 │   └── 04_modeling.ipynb
 │
+├── reports/
+│   └── metrics.json
+│
+├── src/
+│   ├── __init__.py
+│   ├── artifacts.py
+│   ├── calibration.py
+│   ├── config.py
+│   ├── data.py
+│   ├── evaluation.py
+│   ├── features.py
+│   ├── models.py
+│   ├── predict.py
+│   ├── split.py
+│   ├── threshold.py
+│   ├── train.py
+│   └── tuning.py
+│
+├── tests/
+│   ├── test_data.py
+│   ├── test_features.py
+│   ├── test_predict.py
+│   ├── test_split.py
+│   └── test_threshold.py
+│
 ├── .gitignore
 ├── .python-version
+├── pytest.ini
 ├── requirements.txt
+├── requirements-dev.txt
 └── README.md
 ```
+
+## Setup
+
+Python 3.12 is used for the project.
+
+Create and activate a virtual environment.
+
+Windows:
+
+```bash
+python -m venv .venv
+.venv\Scripts\activate
+```
+
+Install project and development dependencies:
+
+```bash
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
+
+Download the dataset from Kaggle and place:
+
+```text
+Synthetic_Financial_datasets_log.csv
+```
+
+inside:
+
+```text
+data/
+```
+
+## Running tests
+
+Run all unit and integration tests:
+
+```bash
+python -m pytest -v
+```
+
+The tests use small synthetic datasets and do not require the full Kaggle dataset.
+
+Tests cover:
+
+```text
+input validation
+feature engineering
+temporal splitting
+threshold selection
+prediction logic
+raw inference pipeline
+```
+
+## Training
+
+Run the complete training pipeline from the repository root:
+
+```bash
+python -m src.train
+```
+
+The pipeline performs:
+
+```text
+Load raw data
+      ↓
+Feature engineering
+      ↓
+Temporal splitting
+      ↓
+Model training
+      ↓
+Probability calibration
+      ↓
+Threshold selection
+      ↓
+Artifact serialization
+      ↓
+Final test evaluation
+```
+
+The trained artifact is saved to:
+
+```text
+models/catboost_fraud_model.joblib
+```
+
+The final evaluation report is saved to:
+
+```text
+reports/metrics.json
+```
+
+## Inference
+
+Load the trained artifact:
+
+```python
+from src.artifacts import load_artifact
+
+artifact = load_artifact()
+```
+
+Predictions can be generated from raw transaction data:
+
+```python
+import pandas as pd
+
+from src.predict import predict_raw
+
+transactions = pd.DataFrame({
+    "step": [100],
+    "type": ["TRANSFER"],
+    "amount": [15000.0],
+})
+
+result = predict_raw(
+    transactions,
+    artifact
+)
+
+print(result)
+```
+
+The result contains:
+
+```text
+probabilities
+predictions
+```
+
+where `predictions` uses the frozen threshold selected during training.
+
+## Hyperparameter tuning
+
+Hyperparameter optimization is separated from normal model training.
+
+`tuning.py` uses Optuna to maximize Average Precision on the temporal validation period.
+
+The selected parameters can be stored in:
+
+```text
+configs/catboost.yaml
+```
+
+Normal training then uses the frozen configuration instead of rerunning expensive optimization.
+
 
 ## Notebooks
 
-### `01_eda.ipynb`
+`01_eda.ipynb` contains exploratory data analysis and leakage investigation.
 
-Exploratory data analysis:
+`02_baseline.ipynb` establishes simple leakage-safe baselines.
 
-* dataset structure
-* missing values and duplicates
-* class imbalance
-* transaction-type distributions
-* amount distributions
-* temporal fraud behavior
-* feature associations
-* target-leakage analysis
+`03_feature_engineering.ipynb` evaluates additional engineered features.
 
-### `02_baseline.ipynb`
+`04_modeling.ipynb` contains model comparison, imbalance experiments, Optuna tuning, temporal cross-validation, calibration, threshold analysis and SHAP interpretation.
 
-Establishes simple leakage-safe baseline models.
-
-Main topics:
-
-* temporal splitting
-* DummyClassifier baseline
-* Logistic Regression
-* class weighting
-* Average Precision as the primary metric
-
-### `03_feature_engineering.ipynb`
-
-Evaluates additional leakage-safe features.
-
-Examples:
-
-* logarithmic transaction amount
-* transaction day
-* transaction hour
-* cyclical hour encoding
-
-Candidate features are compared using the same out-of-time validation methodology.
-
-### `04_modeling.ipynb`
-
-Main modeling notebook.
-
-Includes:
-
-* multiple ML algorithms
-* imbalance strategies
-* sampling experiments
-* CatBoost
-* LightGBM
-* Optuna hyperparameter tuning
-* temporal cross-validation
-* final model retraining
-* probability calibration
-* threshold selection
-* final test evaluation
-* confusion matrices
-* SHAP analysis
-* model artifact serialization
-
-## Kaggle dataset page:
-
-https://www.kaggle.com/datasets/sriharshaeedala/financial-fraud-detection-dataset/data
-
-Dataset CSV files are intentionally excluded from Git.
-
-## Running the project
-
-Run the notebooks in order:
-
-```text
-01_eda.ipynb
-      ↓
-02_baseline.ipynb
-      ↓
-03_feature_engineering.ipynb
-      ↓
-04_modeling.ipynb
-```
-
-Some experiments in `04_modeling.ipynb`, especially model comparison, temporal cross-validation, and Optuna hyperparameter tuning, can take a significant amount of time on the full 6.3 million-row dataset.
-
-For this reason, some expensive cells may remain disabled or commented after their results have been saved.
-
-## Model artifact
-
-The final artifact contains the calibrated fraud-detection model together with the selected operating threshold.
-
-Conceptually:
-
-```text
-Transaction
-    ↓
-Feature engineering
-    ↓
-CatBoost
-    ↓
-Probability calibration
-    ↓
-Fraud probability
-    ↓
-Frozen threshold
-    ↓
-Fraud / legitimate decision
-```
-
-## Current status
-
-The notebook-based research stage is close to completion.
-
-The next stage of the project is to convert the experiment into a reproducible Python pipeline.
-
-Planned improvements:
-
-1. Move feature engineering into reusable Python modules.
-2. Move temporal splitting logic outside notebooks.
-3. Separate Optuna tuning from regular model training.
-4. Create a reproducible end-to-end training command.
-5. Save experiment metadata and metrics alongside the model.
-6. Add automated tests for temporal splitting and feature generation.
-7. Add lightweight CI.
-8. Introduce leakage-safe historical and velocity features based only on past transaction activity.
-
-A possible future project structure:
-
-```text
-.
-├── configs/
-│   └── catboost.yaml
-│
-├── data/
-│
-├── notebooks/
-│
-├── src/
-│   └── fraud_detection/
-│       ├── data.py
-│       ├── split.py
-│       ├── features.py
-│       ├── models.py
-│       ├── tuning.py
-│       ├── calibration.py
-│       ├── threshold.py
-│       ├── evaluation.py
-│       └── train.py
-│
-├── tests/
-│
-├── models/
-│
-└── README.md
-```
-
-The goal is to make the entire workflow reproducible from raw transaction data to a calibrated fraud score and final binary decision.
+The notebooks document the research process, while reusable production-style logic lives in `src/`.
