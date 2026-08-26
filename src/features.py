@@ -16,8 +16,11 @@ def build_features(df) -> pd.DataFrame:
     df_copy = feature_to_categorical(df_copy)
 
     required_columns = FINAL_FEATURES + [TARGET]
-    df_copy = df_copy[required_columns]
-    return df_copy
+
+    if TARGET in df_copy.columns:
+        required_columns.append(TARGET)
+
+    return df_copy[required_columns]
 
 
 def feature_log_amount(df) -> pd.DataFrame:
