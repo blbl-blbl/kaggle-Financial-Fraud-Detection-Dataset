@@ -161,7 +161,6 @@ Latest saved temporal CV results:
 | Model | Mean CV AP | CV AP std |
 | --- | ---: | ---: |
 | CatBoost | 0.407 | 0.044 |
-| LightGBM | 0.384 | 0.030 |
 
 CatBoost was selected as the primary model.
 
@@ -172,8 +171,6 @@ Hyperparameters are optimized using Optuna and stored separately in:
 ```text
 configs/catboost.yaml
 ```
-
-> These metrics were produced during the research stage and should be treated as provisional until the final end-to-end experiment is rerun from the current Python pipeline.
 
 ## Probability calibration
 
@@ -198,18 +195,26 @@ Threshold optimization uses **F2 score**, placing more emphasis on recall than p
 
 This reflects a common fraud-detection assumption: missing a fraudulent transaction can be more costly than investigating an additional legitimate transaction.
 
-## Evaluation
+## Final out-of-time performance
 
-The final out-of-time test report contains:
+The final reproducible training pipeline produced the following
+results on the untouched test period (steps 551–743):
 
-```text
-Average Precision
-Precision
-Recall
-F1
-F2
-Confusion Matrix
-```
+| Metric | Score |
+| --- | ---: |
+| Average Precision | 0.345 |
+| Precision | 0.384 |
+| Recall | 0.379 |
+| F1 | 0.382 |
+| F2 | 0.380 |
+
+Confusion matrix:
+
+| | Predicted legitimate | Predicted fraud |
+| --- | ---: | ---: |
+| Actual legitimate | 193144 | 1309 |
+| Actual fraud | 1333 | 815 |
+
 
 The report is generated automatically by the training pipeline and saved to:
 
