@@ -7,6 +7,7 @@ from src.features import (
     feature_log_amount,
     time_features
 )
+from src.features import build_features
 
 
 def test_feature_log_amount():
@@ -59,3 +60,19 @@ def test_time_features():
         expected_hour_cos,
         atol=1e-10
     )
+
+
+def test_build_features_without_target():
+    df = pd.DataFrame({
+        "step": [1],
+        "type": ["TRANSFER"],
+        "amount": [1000]
+    })
+
+    result = build_features(df)
+
+    assert "isFraud" not in result.columns
+    assert "log_amount" in result.columns
+    assert "day" in result.columns
+    assert "hour_sin" in result.columns
+    assert "hour_cos" in result.columns
