@@ -6,7 +6,7 @@ from src.threshold import find_threshold
 def test_find_threshold_returns_valid_result():
 
     y_true = np.array([0, 0, 0, 1, 1])
-    y_proba = np.array([0.05, 0.10, 0.15, 0.20, 0.70, 0.90])
+    y_proba = np.array([0.05, 0.10, 0.20, 0.70, 0.90])
 
     result = find_threshold(
         y_true,
@@ -33,4 +33,4 @@ def test_find_threshold_on_perfect_predictions():
 
     assert result["precision"] == 1.0
     assert result["recall"] == 1.0
-    assert result["fbeta"] == 1.0
+    assert np.isclose(result["fbeta"], 1.0)

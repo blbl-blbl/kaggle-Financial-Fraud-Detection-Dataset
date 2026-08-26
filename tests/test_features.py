@@ -45,6 +45,7 @@ def test_time_features():
     expected_hour_cos = np.cos(
         2 * np.pi
         * np.array([0, 6, 12, 18, 0])
+        / 24
     )
 
     np.testing.assert_allclose(
