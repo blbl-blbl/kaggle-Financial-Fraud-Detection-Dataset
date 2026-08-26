@@ -5,9 +5,10 @@ import pandas as pd
 
 from src.features import (
     feature_log_amount,
-    time_features
+    time_features,
+    feature_to_categorical,
+    build_features
 )
-from src.features import build_features
 
 
 def test_feature_log_amount():
@@ -76,3 +77,14 @@ def test_build_features_without_target():
     assert "day" in result.columns
     assert "hour_sin" in result.columns
     assert "hour_cos" in result.columns
+
+
+def test_feature_to_categorical():
+    df = pd.DataFrame({
+        "type": [
+            "PAYMENT",
+            "TRANSFER"
+        ]
+    })
+    result = feature_to_categorical(df)
+    assert str(result["type"].dtype) == "category"
